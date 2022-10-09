@@ -8,6 +8,7 @@ const ORGANISATION_NAME = 'p2panda';
 const SINCE = '2022-09-01T00:00:00';
 
 const PAGE_SIZE = 100;
+const DATA_FOLDER_NAME = 'data';
 
 const authToken = fs.readFileSync('./token.txt', 'utf-8').replace('\n', '');
 const octokit = new Octokit({
@@ -220,7 +221,7 @@ async function fetchCommitStats(owner, repo, ref) {
 }
 
 function writeFile(repo, data) {
-  const filePath = `./${repo}.json`;
+  const filePath = `./${DATA_FOLDER_NAME}/${repo}.json`;
   printSubtitle(`Write data to ${filePath}`);
   fs.writeFileSync(filePath, JSON.stringify(data), 'utf8');
   console.log();

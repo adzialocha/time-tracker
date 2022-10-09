@@ -1,5 +1,3 @@
-*.json
-!package.json
-!package-lock.json
-token.txt
+data/*.json
 node_modules
+token.txt
