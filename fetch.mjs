@@ -1,19 +1,58 @@
 import fs from 'fs';
 
+import { Command } from 'commander';
 import { Octokit } from 'octokit';
 import chalk from 'chalk';
-
-const AUTHOR = 'adzialocha';
-const ORGANISATION_NAME = 'p2panda';
-const SINCE = '2022-09-01T00:00:00';
 
 const PAGE_SIZE = 100;
 const DATA_FOLDER_NAME = 'data';
 
-const authToken = fs.readFileSync('./token.txt', 'utf-8').replace('\n', '');
+// Parse user arguments
+const program = new Command();
+
+program
+  .name('time-tracking')
+  .description('Because adz was lazy')
+  .option(
+    '-t, --auth-token <path>',
+    'Path to file holding GitHub API auth token',
+    './token.txt',
+  )
+  .option(
+    '-f, --from <date>',
+    'Download data from that date on, formatted as ISO 8601 string',
+    '2022-09-01T00:00:00',
+  )
+  .option(
+    '-o, --organisation <name>',
+    'GitHub organisation name',
+    'p2panda',
+  )
+  .option(
+    '-a, --author <username>',
+    'GitHub username',
+    'adzialocha',
+  );
+
+program.parse();
+const options = program.opts();
+
+// Load authentication token for GitHub API
+let authToken;
+try {
+  authToken = fs.readFileSync(options.authToken, 'utf-8').replace('\n', '');
+} catch {
+  throw new Error(`GitHub personal authentication token for API missing in "${options.authToken}" file`);
+}
+
+// Initialise GitHub API tool
 const octokit = new Octokit({
   auth: authToken,
 });
+
+// =======
+// Helpers
+// =======
 
 function truncate(str, len = 50) {
   if (str.length <= len) {
@@ -57,9 +96,24 @@ function printCommit({ commit, author, sha }, pullRequestId) {
   );
 }
 
-async function requestOne(path, options) {
+// ===============
+// Write JSON file
+// ===============
+
+function writeFile(repo, data) {
+  const filePath = `./${DATA_FOLDER_NAME}/${repo}.json`;
+  printSubtitle(`Write data to ${filePath}`);
+  fs.writeFileSync(filePath, JSON.stringify(data), 'utf8');
+  console.log();
+}
+
+// ================================
+// Make requests against GitHub API
+// ================================
+
+async function requestOne(path, args) {
   const { data, url } = await octokit.request(`GET ${path}`, {
-    ...options,
+    ...args,
   });
 
   console.log(`⇓ Fetched ${chalk.blue(url)}`);
@@ -67,16 +121,16 @@ async function requestOne(path, options) {
   return data;
 }
 
-async function requestAll(path, options) {
+async function requestAll(path, args) {
   const result = [];
   let page = 1;
 
   while (true) {
     const response = await octokit.request(`GET ${path}`, {
-      ...options,
+      ...args,
       per_page: PAGE_SIZE,
-      since: SINCE,
-      author: AUTHOR,
+      since: options.from,
+      author: options.author,
       page,
     });
 
@@ -95,6 +149,10 @@ async function requestAll(path, options) {
 
   return result;
 }
+
+// =============================
+// Methods to gather commit data
+// =============================
 
 function findPullRequest({ commit }) {
   const firstLine = commit.message.split('\n')[0];
@@ -119,10 +177,10 @@ function filterPlainCommits(commits) {
 }
 
 async function fetchRepositories() {
-  printSubtitle(`Fetch all repositories of ${ORGANISATION_NAME}`);
+  printSubtitle(`Fetch all repositories of ${options.organisation}`);
 
   const repositories = await requestAll('/orgs/{org}/repos', {
-    org: ORGANISATION_NAME,
+    org: options.organisation,
   });
 
   console.log(`✔ Got ${chalk.bold(repositories.length)} repositories\n`);
@@ -131,7 +189,7 @@ async function fetchRepositories() {
 }
 
 async function fetchAllCommits(owner, repo) {
-  printSubtitle(`Fetch all commits from ${SINCE}`);
+  printSubtitle(`Fetch all commits from ${options.from}`);
 
   // Get all commits
   const commits = await requestAll('/repos/{owner}/{repo}/commits', {
@@ -229,13 +287,6 @@ async function fetchCommitStats(owner, repo, ref) {
   };
 }
 
-function writeFile(repo, data) {
-  const filePath = `./${DATA_FOLDER_NAME}/${repo}.json`;
-  printSubtitle(`Write data to ${filePath}`);
-  fs.writeFileSync(filePath, JSON.stringify(data), 'utf8');
-  console.log();
-}
-
 async function getCommitData(owner, repo) {
   const commits = await fetchAllCommits(owner, repo);
   const pullRequestIds = findAssociatedPRs(commits);
@@ -288,6 +339,10 @@ async function getCommitData(owner, repo) {
   });
 }
 
+// =============================
+// Methods to gather issues data
+// =============================
+
 async function getIssueData(owner, repo) {
   printSubtitle(`Fetch all issue events for ${repo}`);
 
@@ -298,8 +353,8 @@ async function getIssueData(owner, repo) {
 
   // The GitHub API does not filter for us by date and author, so we do it here manually
   const filtered = events.filter((event) => {
-    console.log(event.created_at >= SINCE);
-    return event.created_at >= SINCE && event.actor.login === AUTHOR;
+    console.log(event.created_at >= options.from);
+    return event.created_at >= options.from && event.actor.login === options.author;
   });
 
   // Gather some statistics about type of events (just for fun)
@@ -331,6 +386,10 @@ async function getIssueData(owner, repo) {
   });
 }
 
+// =========================================================
+// Gather commits and issues data and write all to JSON file
+// =========================================================
+
 async function getData(owner, repo) {
   printTitle(`Repository: ${owner}/${repo}`);
 
@@ -343,8 +402,14 @@ async function getData(owner, repo) {
   });
 }
 
+// ===========
+// Here we go!
+// ===========
+
 printTitle("Woho! Let's go!");
 const repositories = await fetchRepositories();
 for (const repo of repositories) {
-  await getData(ORGANISATION_NAME, repo.name);
+  await getData(options.organisation, repo.name);
 }
+
+console.log('Done!');
