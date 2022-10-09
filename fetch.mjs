@@ -5,7 +5,6 @@ import { Octokit } from 'octokit';
 import chalk from 'chalk';
 
 const PAGE_SIZE = 100;
-const DATA_FOLDER_NAME = 'data';
 
 // Parse user arguments
 const program = new Command();
@@ -13,6 +12,7 @@ const program = new Command();
 program
   .name('fetch')
   .description('Because adz was lazy')
+  .option('-d, --data <name>', 'Name of the data folder', 'data')
   .option(
     '-t, --auth-token <path>',
     'Path to file holding GitHub API auth token',
@@ -101,7 +101,11 @@ function printCommit({ commit, author, sha }, pullRequestId) {
 // ===============
 
 function writeFile(repo, data) {
-  const filePath = `./${DATA_FOLDER_NAME}/${repo}.json`;
+  if (!fs.existsSync(`./${options.data}`)){
+    fs.mkdirSync(`./${options.data}`);
+  }
+
+  const filePath = `./${options.data}/${repo}.json`;
   printSubtitle(`Write data to ${filePath}`);
   fs.writeFileSync(filePath, JSON.stringify(data), 'utf8');
   console.log();

@@ -31,6 +31,7 @@ npm run clear
 #### `fetch`
 
 ```
+-d, --data <name>          Name of the data folder (default: "data")
 -t, --auth-token <path>    Path to file holding GitHub API auth token (default:
                            "./token.txt")
 -f, --from <date>          Download data from that date on, formatted as ISO
@@ -43,6 +44,7 @@ npm run clear
 #### `analyse`
 
 ```
+-d, --data <name>          Name of the data folder (default: "data")
 -f, --from <date>          Analyse data from that date on, formatted as ISO
                            8601 string (default: "2021-09-01T00:00:00")
 -t, --to <date>            Analyse data until that date, formatted as ISO

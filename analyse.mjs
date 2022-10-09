@@ -6,7 +6,6 @@ import { DateTime, Interval, Settings, Duration } from 'luxon';
 
 Settings.defaultZone = 'utc';
 
-const DATA_FOLDER_NAME = 'data';
 const CELL_DURATION = 30; // in minutes
 
 // Parse user arguments
@@ -15,20 +14,21 @@ const program = new Command();
 program
   .name('analyse')
   .description('Because adz was lazy')
+  .option('-d, --data <name>', 'Name of the data folder', 'data')
   .option(
     '-f, --from <date>',
     'Analyse data from that date on, formatted as ISO 8601 string',
-    '2021-09-01T00:00:00'
+    '2021-09-01T00:00:00',
   )
   .option(
     '-t, --to <date>',
     'Analyse data until that date, formatted as ISO 8601 string',
-    '2022-09-30T23:59:59'
+    '2022-09-30T23:59:59',
   )
   .option(
     '-d, --threshold <minutes>',
     'Consider a working phase within this duration',
-    60 * 2
+    60 * 2,
   );
 
 program.parse();
@@ -81,13 +81,13 @@ function printDuration(minutes) {
 // ===============
 
 function listAllJSONFiles() {
-  return fs.readdirSync(`./${DATA_FOLDER_NAME}`).filter((file) => {
+  return fs.readdirSync(`./${options.data}`).filter((file) => {
     return file.includes('.json');
   });
 }
 
 function loadFile(filePath) {
-  const data = fs.readFileSync(`./${DATA_FOLDER_NAME}/${filePath}`, 'utf8');
+  const data = fs.readFileSync(`./${options.data}/${filePath}`, 'utf8');
   return JSON.parse(data);
 }
 
@@ -164,7 +164,7 @@ function calculateWorkPhases(timeline) {
   return phases.map((phase) => {
     return Interval.fromDateTimes(
       DateTime.fromISO(phase.from),
-      DateTime.fromISO(phase.to)
+      DateTime.fromISO(phase.to),
     );
   });
 }
@@ -203,7 +203,7 @@ function printCalendar(timeline, phases) {
     // Interval of the whole day
     const dayInterval = Interval.fromDateTimes(
       currentDay,
-      currentDay.endOf('day')
+      currentDay.endOf('day'),
     );
 
     // Calculate how many minutes we worked during that day
@@ -257,8 +257,8 @@ function printCalendar(timeline, phases) {
 
     console.log(
       `┆ ${currentDay.toFormat('dd.MM.yy')} ┆ ${cells} ┆ ${printDuration(
-        minutesWorked
-      )}`
+        minutesWorked,
+      )}`,
     );
   }
 
@@ -284,7 +284,7 @@ function printMonthSummary(phases) {
         '▶',
         currentMonth.toFormat('LLLL yy').padEnd(12),
         printDuration(minutesWorked).padStart(9),
-      ].join(' ')
+      ].join(' '),
     );
     currentMonth = currentMonth.plus({ month: 1 });
   }
@@ -296,7 +296,7 @@ function printTotal(phases) {
   printTitle('Total hours');
   const timeframe = Interval.fromDateTimes(
     DateTime.fromISO(options.from),
-    DateTime.fromISO(options.to)
+    DateTime.fromISO(options.to),
   );
   const minutesWorked = getWorkDuringTimeframe(phases, timeframe);
   console.log(`${printDuration(minutesWorked)} hours`);
