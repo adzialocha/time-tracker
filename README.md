@@ -46,7 +46,7 @@ npm run clear
 -f, --from <date>          Analyse data from that date on, formatted as ISO
                            8601 string (default: "2021-09-01T00:00:00")
 -t, --to <date>            Analyse data until that date, formatted as ISO
-                           8601 string (default: "2022-10-01T00:00:00")
+                           8601 string (default: "2022-09-30T23:59:59")
 -d, --threshold <minutes>  Consider a working phase within this duration
                            (default: 240)
 -h, --help                 display help for command

@@ -23,12 +23,12 @@ program
   .option(
     '-t, --to <date>',
     'Analyse data until that date, formatted as ISO 8601 string',
-    '2022-10-01T00:00:00'
+    '2022-09-30T23:59:59'
   )
   .option(
     '-d, --threshold <minutes>',
     'Consider a working phase within this duration',
-    60 * 4
+    60 * 2
   );
 
 program.parse();
@@ -188,7 +188,7 @@ function printCalendar(timeline, phases) {
 
   let currentDay = from.minus({ day: 1 });
 
-  while (currentDay < to) {
+  while (currentDay.plus({ day: 1 }) < to) {
     const nextDay = currentDay.plus({ day: 1 });
 
     // Print month
