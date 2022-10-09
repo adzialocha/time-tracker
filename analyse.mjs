@@ -1,14 +1,38 @@
 import fs from 'fs';
 
 import chalk from 'chalk';
+import { Command } from 'commander';
 import { DateTime, Interval, Settings, Duration } from 'luxon';
 
 Settings.defaultZone = 'utc';
 
-const FROM = '2021-09-01';
-const TO = '2022-09-30';
 const DATA_FOLDER_NAME = 'data';
-const DURATION = 30; // in minutes
+const CELL_DURATION = 30; // in minutes
+
+// Parse user arguments
+const program = new Command();
+
+program
+  .name('analyse')
+  .description('Because adz was lazy')
+  .option(
+    '-f, --from <date>',
+    'Analyse data from that date on, formatted as ISO 8601 string',
+    '2021-09-01T00:00:00'
+  )
+  .option(
+    '-t, --to <date>',
+    'Analyse data until that date, formatted as ISO 8601 string',
+    '2022-10-01T00:00:00'
+  )
+  .option(
+    '-d, --threshold <minutes>',
+    'Consider a working phase within this duration',
+    60 * 4
+  );
+
+program.parse();
+const options = program.opts();
 
 // =======
 // Helpers
@@ -48,9 +72,7 @@ function getWorkDuringTimeframe(workIntervals, timeframe) {
 
 function printDuration(minutes) {
   return minutes > 0
-    ? Duration.fromObject({ minutes })
-        .normalize()
-        .toFormat('hh:mm:ss')
+    ? Duration.fromObject({ minutes }).normalize().toFormat('hh:mm:ss')
     : '';
 }
 
@@ -122,7 +144,7 @@ function calculateWorkPhases(timeline) {
     const toDate = DateTime.fromISO(to.date);
     const { minutes } = toDate.diff(fromDate, 'minutes').toObject();
 
-    if (minutes > 60 * 4) {
+    if (minutes > options.threshold) {
       phases.push({
         from: phaseFrom,
         to: fromDate.plus({ minutes: 5 }).toISO(),
@@ -150,8 +172,8 @@ function calculateWorkPhases(timeline) {
 function printCalendar(timeline, phases) {
   printTitle('Calendar');
 
-  const from = DateTime.fromISO(FROM);
-  const to = DateTime.fromISO(TO);
+  const from = DateTime.fromISO(options.from);
+  const to = DateTime.fromISO(options.to);
 
   const eventsByDay = timeline.reduce((acc, event) => {
     const day = event.date.split('T')[0];
@@ -188,12 +210,12 @@ function printCalendar(timeline, phases) {
     const minutesWorked = getWorkDuringTimeframe(phases, dayInterval);
 
     // Print cells to visualise day
-    const cells = new Array((24 * 60) / DURATION)
+    const cells = new Array((24 * 60) / CELL_DURATION)
       .fill(0)
       .map((_, index) => {
         // Create an interval for that cell
-        const cellFrom = currentDay.plus({ minutes: DURATION * index });
-        const cellTo = cellFrom.plus({ minutes: DURATION });
+        const cellFrom = currentDay.plus({ minutes: CELL_DURATION * index });
+        const cellTo = cellFrom.plus({ minutes: CELL_DURATION });
         const phase = Interval.fromDateTimes(cellFrom, cellTo);
 
         // Check if we worked during that cell
@@ -234,7 +256,9 @@ function printCalendar(timeline, phases) {
       .join('');
 
     console.log(
-      `┆ ${currentDay.toFormat('dd.MM.yy')} ┆ ${cells} ┆ ${printDuration(minutesWorked)}`
+      `┆ ${currentDay.toFormat('dd.MM.yy')} ┆ ${cells} ┆ ${printDuration(
+        minutesWorked
+      )}`
     );
   }
 
@@ -244,22 +268,24 @@ function printCalendar(timeline, phases) {
 function printMonthSummary(phases) {
   printTitle('Months summary');
 
-  console.log('  Month         Hours')
-  console.log('------------------------')
+  console.log('  Month         Hours');
+  console.log('------------------------');
 
-  let currentMonth = DateTime.fromISO(FROM);
-  while (currentMonth <= DateTime.fromISO(TO)) {
+  let currentMonth = DateTime.fromISO(options.from);
+  while (currentMonth <= DateTime.fromISO(options.to)) {
     const from = currentMonth;
     const to = currentMonth.endOf('month');
 
     const timeframe = Interval.fromDateTimes(from, to);
     const minutesWorked = getWorkDuringTimeframe(phases, timeframe);
 
-    console.log([
-      '▶',
-      currentMonth.toFormat('LLLL yy').padEnd(12),
-      printDuration(minutesWorked).padStart(9)
-    ].join(' '));
+    console.log(
+      [
+        '▶',
+        currentMonth.toFormat('LLLL yy').padEnd(12),
+        printDuration(minutesWorked).padStart(9),
+      ].join(' ')
+    );
     currentMonth = currentMonth.plus({ month: 1 });
   }
 
@@ -268,7 +294,10 @@ function printMonthSummary(phases) {
 
 function printTotal(phases) {
   printTitle('Total hours');
-  const timeframe = Interval.fromDateTimes(DateTime.fromISO(FROM), DateTime.fromISO(TO));
+  const timeframe = Interval.fromDateTimes(
+    DateTime.fromISO(options.from),
+    DateTime.fromISO(options.to)
+  );
   const minutesWorked = getWorkDuringTimeframe(phases, timeframe);
   console.log(`${printDuration(minutesWorked)} hours`);
   console.log();
