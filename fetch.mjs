@@ -308,19 +308,16 @@ async function getCommitData(owner, repo) {
     pullRequests[pullRequestId] = prCommits;
   }
 
-  const plainCommits = filterPlainCommits(commits);
+  // Remove all commits coming from squash merges, also remove duplicates
+  const { plainCommits } = filterPlainCommits(commits)
+    .reduce((acc, commit) => {
+      if (!acc.hashes.includes(commit.sha)) {
+        acc.hashes.push(commit.sha);
+        acc.plainCommits.push(commit);
+      }
 
-  // Check for duplicates
-  // @TODO: Remove this later, probably it's not necessary
-  plainCommits.reduce((acc, commit) => {
-    if (acc.includes(commit.sha)) {
-      throw Error('Duplicate!');
-    } else {
-      acc.push(commit.sha);
-    }
-
-    return acc;
-  }, []);
+      return acc;
+    }, { plainCommits: [], hashes: [] });
 
   for await (const commit of plainCommits) {
     const stats = await fetchCommitStats(owner, repo, commit.sha);
