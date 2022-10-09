@@ -21,6 +21,9 @@ npm run fetch
 
 # Only analyse data (after you've fetched it)
 npm run analyse
+
+# Remove all downloaded data
+npm run clear
 ```
 
 ### Arguments
