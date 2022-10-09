@@ -3,8 +3,13 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "engines": {
+    "node" : ">=18"
+  },
   "scripts": {
-    "start": "NODE_NO_WARNINGS=1 node index.mjs"
+    "clear": "rm ./data/*.json",
+    "fetch": "NODE_NO_WARNINGS=1 node fetch.mjs",
+    "start": "npm run fetch"
   },
   "author": "adzialocha",
   "license": "UNLICENSED",

@@ -25,12 +25,12 @@ function truncate(str, len = 50) {
 
 function printTitle(title) {
   const line = title
-      .split('')
-      .reduce((acc, _, index) => {
-        acc.push(index % 2 === 0 ? '❉' : ' ');
-        return acc;
-      }, [])
-      .join('');
+    .split('')
+    .reduce((acc, _, index) => {
+      acc.push(index % 2 === 0 ? '❉' : ' ');
+      return acc;
+    }, [])
+    .join('');
 
   console.log(chalk.bgMagenta.black.bold(line));
   console.log(chalk.bgMagenta.black.bold(title));
@@ -46,13 +46,15 @@ function printSubtitle(str) {
 function printCommit({ commit, author, sha }, pullRequestId) {
   const firstLine = commit.message.split('\n')[0];
 
-  console.log([
-    commit.author.date,
-    chalk.red(author.login.padEnd(10)),
-    chalk.yellow(sha.slice(0, 8)),
-    `"${truncate(firstLine)}"`,
-    pullRequestId && chalk.bold(pullRequestId ? `(#${pullRequestId})` : ''),
-  ].join(' '));
+  console.log(
+    [
+      commit.author.date,
+      chalk.red(author.login.padEnd(10)),
+      chalk.yellow(sha.slice(0, 8)),
+      `"${truncate(firstLine)}"`,
+      pullRequestId && chalk.bold(pullRequestId ? `(#${pullRequestId})` : ''),
+    ].join(' ')
+  );
 }
 
 async function requestOne(path, options) {
@@ -98,9 +100,8 @@ function findPullRequest({ commit }) {
   const firstLine = commit.message.split('\n')[0];
 
   const matches = [...firstLine.matchAll(/\(\#(\d+)\)/g)];
-  const pullRequestId = matches && matches.length === 1 
-    ? parseInt(matches[0][1], 10) 
-    : undefined;
+  const pullRequestId =
+    matches && matches.length === 1 ? parseInt(matches[0][1], 10) : undefined;
 
   return pullRequestId;
 }
@@ -174,11 +175,14 @@ function findAssociatedPRs(commits) {
 async function fetchCommitsInPullRequest(owner, repo, pullRequestId) {
   printSubtitle(`Fetch commits from pull request #${pullRequestId}`);
 
-  const commits = await requestAll('/repos/{owner}/{repo}/pulls/{pull_number}/commits', {
-    owner,
-    repo,
-    pull_number: pullRequestId,
-  });
+  const commits = await requestAll(
+    '/repos/{owner}/{repo}/pulls/{pull_number}/commits',
+    {
+      owner,
+      repo,
+      pull_number: pullRequestId,
+    }
+  );
 
   console.log(`✔ Got ${chalk.bold(commits.length)} commits\n`);
 
@@ -199,19 +203,24 @@ async function fetchCommitsInPullRequest(owner, repo, pullRequestId) {
 async function fetchCommitStats(owner, repo, ref) {
   printSubtitle(`Fetch commit statistics for ${ref.slice(0, 8)}`);
 
-  const { commit, stats, files } = await requestOne('/repos/{owner}/{repo}/commits/{ref}', {
-    owner,
-    repo,
-    ref,
-  });
+  const { commit, stats, files } = await requestOne(
+    '/repos/{owner}/{repo}/commits/{ref}',
+    {
+      owner,
+      repo,
+      ref,
+    }
+  );
 
-  console.log([
-    `✔ Files: ${chalk.bold(files.length)}`,
-    `Changes: ${chalk.yellow.bold(stats.total)}`,
-    `Additions: ${chalk.green.bold(stats.additions)}`,
-    `Deletions: ${chalk.red.bold(stats.deletions)}`,
-    `Commit: ${commit.author.date} "${truncate(commit.message, 24)}"`,
-  ].join(', '));
+  console.log(
+    [
+      `✔ Files: ${chalk.bold(files.length)}`,
+      `Changes: ${chalk.yellow.bold(stats.total)}`,
+      `Additions: ${chalk.green.bold(stats.additions)}`,
+      `Deletions: ${chalk.red.bold(stats.deletions)}`,
+      `Commit: ${commit.author.date} "${truncate(commit.message, 24)}"`,
+    ].join(', ')
+  );
   console.log();
 
   return {
@@ -233,7 +242,11 @@ async function getCommitData(owner, repo) {
 
   const pullRequests = {};
   for (const pullRequestId of pullRequestIds) {
-    const prCommits = await fetchCommitsInPullRequest(owner, repo, pullRequestId);
+    const prCommits = await fetchCommitsInPullRequest(
+      owner,
+      repo,
+      pullRequestId
+    );
 
     // Add all PR commits to the others
     for (const commit of prCommits) {
@@ -275,18 +288,63 @@ async function getCommitData(owner, repo) {
   });
 }
 
-async function getData(owner, repo) {
-  printTitle(`Repository: ${owner}/${repo}`)
+async function getIssueData(owner, repo) {
+  printSubtitle(`Fetch all issue events for ${repo}`);
 
-  const commits = await getCommitData(owner, repo);
+  const events = await requestAll('/repos/{owner}/{repo}/issues/events', {
+    owner,
+    repo,
+  });
 
-  writeFile(repo, {
-    commits,
+  // The GitHub API does not filter for us by date and author, so we do it here manually
+  const filtered = events.filter((event) => {
+    console.log(event.created_at >= SINCE);
+    return event.created_at >= SINCE && event.actor.login === AUTHOR;
+  });
+
+  // Gather some statistics about type of events (just for fun)
+  const counter = filtered.reduce((acc, { event: eventType }) => {
+    if (!(eventType in acc)) {
+      acc[eventType] = 0;
+    }
+
+    acc[eventType] += 1;
+    return acc;
+  }, {});
+
+  console.log(
+    `✔ Got ${chalk.bold(filtered.length)} events ` +
+      Object.keys(counter)
+        .map((eventType) => {
+          return `${eventType}: ${chalk.bold(counter[eventType])}`;
+        })
+        .join(', ')
+  );
+
+  return filtered.map((event) => {
+    return {
+      author: event.actor.login,
+      date: event.created_at,
+      eventType: event.event,
+      issueId: event.issue.number,
+    };
   });
 }
 
-const repositories = await fetchRepositories();
+async function getData(owner, repo) {
+  printTitle(`Repository: ${owner}/${repo}`);
 
+  const commits = await getCommitData(owner, repo);
+  const issues = await getIssueData(owner, repo);
+
+  writeFile(repo, {
+    commits,
+    issues,
+  });
+}
+
+printTitle("Woho! Let's go!");
+const repositories = await fetchRepositories();
 for (const repo of repositories) {
   await getData(ORGANISATION_NAME, repo.name);
 }
