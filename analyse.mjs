@@ -26,7 +26,7 @@ program
     '2022-09-30T23:59:59',
   )
   .option(
-    '-d, --threshold <minutes>',
+    '-m, --threshold <minutes>',
     'Consider a working phase within this duration',
     60 * 2,
   );
@@ -66,6 +66,10 @@ function getWorkDuringTimeframe(workIntervals, timeframe) {
       return timeframe.intersection(interval);
     })
     .reduce((acc, interval) => {
+      if (!interval) {
+        return acc;
+      }
+
       return acc + interval.toDuration(['minutes']).toObject()['minutes'];
     }, 0);
 }

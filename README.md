@@ -49,7 +49,7 @@ npm run clear
                            8601 string (default: "2021-09-01T00:00:00")
 -t, --to <date>            Analyse data until that date, formatted as ISO
                            8601 string (default: "2022-09-30T23:59:59")
--d, --threshold <minutes>  Consider a working phase within this duration
+-m, --threshold <minutes>  Consider a working phase within this duration
                            (default: 240)
 -h, --help                 display help for command
 ```
