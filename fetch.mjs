@@ -21,7 +21,7 @@ program
   .option(
     '-f, --from <date>',
     'Download data from that date on, formatted as ISO 8601 string',
-    '2022-09-01T00:00:00',
+    '2021-09-01T00:00:00',
   )
   .option(
     '-o, --organisation <name>',
