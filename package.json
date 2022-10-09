@@ -7,15 +7,17 @@
     "node": ">=18"
   },
   "scripts": {
+    "analyse": "NODE_NO_WARNINGS=1 node analyse.mjs",
     "clear": "rm ./data/*.json",
     "fetch": "NODE_NO_WARNINGS=1 node fetch.mjs",
-    "start": "npm run fetch"
+    "start": "npm run fetch && npm run analyse"
   },
   "author": "adzialocha",
   "license": "UNLICENSED",
   "dependencies": {
     "chalk": "^5.1.0",
     "commander": "^9.4.1",
+    "luxon": "^3.0.4",
     "octokit": "^2.0.7"
   }
 }

@@ -11,7 +11,7 @@ const DATA_FOLDER_NAME = 'data';
 const program = new Command();
 
 program
-  .name('time-tracking')
+  .name('fetch')
   .description('Because adz was lazy')
   .option(
     '-t, --auth-token <path>',
