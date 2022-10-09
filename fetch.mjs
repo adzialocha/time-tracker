@@ -246,9 +246,16 @@ async function fetchCommitsInPullRequest(owner, repo, pullRequestId) {
     }
   );
 
-  console.log(`✔ Got ${chalk.bold(commits.length)} commits\n`);
+  // Sometimes during forced rebases the author gets associated with this
+  // commit, even though they did not make it originally, let's filter them out
+  // here 4 sure
+  const filtered = commits.filter(({ author }) => {
+    return author.login === options.author;
+  });
 
-  for (const commit of commits) {
+  console.log(`✔ Got ${chalk.bold(filtered.length)} commits\n`);
+
+  for (const commit of filtered) {
     printCommit(commit, pullRequestId);
 
     // Add these additional information to the commit itself
@@ -257,38 +264,11 @@ async function fetchCommitsInPullRequest(owner, repo, pullRequestId) {
     commit.__pullRequestId = pullRequestId;
   }
 
-  console.log();
+  if (filtered.length > 0) {
+    console.log();
+  }
 
-  return commits;
-}
-
-async function fetchCommitStats(owner, repo, ref) {
-  printSubtitle(`Fetch commit statistics for ${ref.slice(0, 8)}`);
-
-  const { commit, stats, files } = await requestOne(
-    '/repos/{owner}/{repo}/commits/{ref}',
-    {
-      owner,
-      repo,
-      ref,
-    }
-  );
-
-  console.log(
-    [
-      `✔ Files: ${chalk.bold(files.length)}`,
-      `Changes: ${chalk.yellow.bold(stats.total)}`,
-      `Additions: ${chalk.green.bold(stats.additions)}`,
-      `Deletions: ${chalk.red.bold(stats.deletions)}`,
-      `Commit: ${commit.author.date} "${truncate(commit.message, 24)}"`,
-    ].join(', ')
-  );
-  console.log();
-
-  return {
-    ...stats,
-    files: files.length,
-  };
+  return filtered;
 }
 
 async function getCommitData(owner, repo) {
@@ -323,11 +303,6 @@ async function getCommitData(owner, repo) {
       return acc;
     }, { plainCommits: [], hashes: [] });
 
-  for await (const commit of plainCommits) {
-    const stats = await fetchCommitStats(owner, repo, commit.sha);
-    commit.__stats = stats;
-  }
-
   return plainCommits.map((commit) => {
     return {
       author: commit.author.login,
@@ -335,7 +310,6 @@ async function getCommitData(owner, repo) {
       message: commit.commit.message,
       pullRequestId: commit.__pullRequestId ? commit.__pullRequestId : null,
       sha: commit.sha,
-      stats: commit.__stats,
     };
   });
 }
@@ -354,7 +328,6 @@ async function getIssueData(owner, repo) {
 
   // The GitHub API does not filter for us by date and author, so we do it here manually
   const filtered = events.filter((event) => {
-    console.log(event.created_at >= options.from);
     return event.created_at >= options.from && event.actor.login === options.author;
   });
 
@@ -376,6 +349,7 @@ async function getIssueData(owner, repo) {
         })
         .join(', ')
   );
+  console.log();
 
   return filtered.map((event) => {
     return {
